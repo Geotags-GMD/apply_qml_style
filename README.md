@@ -1,7 +1,5 @@
 # Apply QML Style Manager
 
-**Version:** 5.0-beta build 1.0
-
 ## Description
 Apply QML Style Manager is a powerful QGIS plugin designed to streamline the process of applying QML styles to layers within specific layer groups. This plugin is particularly useful for managing and styling large sets of geospatial data where consistent visual representation is crucial.
 
