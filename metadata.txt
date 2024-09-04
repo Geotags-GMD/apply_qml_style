@@ -3,11 +3,11 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=apply_qml_style
+name=Apply QML Style Manager
 qgisMinimumVersion=3.0
-description=This Plugin apply qml styles to 2024 Map Layers and Arrange the layers based on its heirarchy
-version=0.1
-author=NA
+description=This plugin is particularly useful for managing and styling large sets of geospatial data where consistent visual representation is crucial
+version=5.0-beta build 1.0
+author=Philippine Statistics Authority
 email=NA
 
 about=This Plugin allows user to apply style to 2024 map layers and arrange the order of the layers
