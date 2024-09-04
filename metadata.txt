@@ -15,7 +15,7 @@ icon=icon.png
 [about]
 description=This plugin helps manage QML styles for layers within specific layer groups in QGIS. Features include multi-select for layer groups, automatic style application based on a JSON configuration file, and real-time progress tracking.
 longDescription=Apply QML Style Manager is a QGIS plugin designed to improve the efficiency of styling and managing geospatial data layers. With this plugin, users can select multiple layer groups, automatically apply styles from QML files based on a JSON configuration, rearrange layers according to a specified order, and remove duplicates to keep the layer structure organized. The plugin also tracks progress during the style application process, providing real-time feedback.
-version=5.0-beta build 1.0
+version=5.0-beta build 1.1
 releaseDate=2024-09-05
 author=Philippine Statistics Authority
 email=your-email@example.com
