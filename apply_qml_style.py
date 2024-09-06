@@ -1,6 +1,6 @@
 
 import os
-import json
+import json , re
 from qgis.core import QgsProject, QgsLayerTreeLayer, QgsLayerTreeGroup
 from qgis.utils import iface
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem
@@ -67,7 +67,7 @@ class MyQGISPlugin:
             self.folder_label.setText(f"Selected Folder: .../{display_folder}")
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.0-beta build 1.1")
+        version_label = QLabel("Version: 5.0 build 1.37")
         layout.addWidget(version_label)
 
         dialog.setLayout(layout)
@@ -161,15 +161,20 @@ class MyQGISPlugin:
             'landmark': os.path.join(self.qml_folder, '10. 2024 POPCEN-CBMS Landmark.qml'),
             'road': os.path.join(self.qml_folder, '8. 2024 POPCEN-CBMS Road.qml'),
             'river': os.path.join(self.qml_folder, '9. 2024 POPCEN-CBMS River.qml'),
-            'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
-            'pppmmbbbeeeeee': os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
+            'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml')
         }
+
+        outside_group_qml = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
 
         layer_order = ['river', 'road', 'block', 'ea2024', 'bgy', 'landmark', 'bldg_point']
 
         root = QgsProject.instance().layerTreeRoot()
         total_layers = 0
 
+        # Track layers that have been processed within selected groups
+        processed_layers = set()
+
+        # Process layers within selected groups
         for selected_group_name in selected_groups:
             selected_group = root.findGroup(selected_group_name)
             if not selected_group:
@@ -178,12 +183,27 @@ class MyQGISPlugin:
 
             layers = [node.layer() for node in selected_group.children() if isinstance(node, QgsLayerTreeLayer)]
             total_layers += len(layers)
-            self.progress_bar.setMaximum(total_layers)
 
+        # Add count for layers outside the selected groups
+        all_layers = [node.layer() for node in root.children() if isinstance(node, QgsLayerTreeLayer)]
+        outside_layers = [layer for layer in all_layers if layer not in processed_layers]
+        total_layers += len(outside_layers)
+
+        self.progress_bar.setMaximum(total_layers)
+        self.progress_bar.setValue(0)
+
+        # Process layers within selected groups
+        for selected_group_name in selected_groups:
+            selected_group = root.findGroup(selected_group_name)
+            if not selected_group:
+                iface.messageBar().pushCritical("Error", f"Layer group '{selected_group_name}' not found.")
+                continue
+
+            layers = [node.layer() for node in selected_group.children() if isinstance(node, QgsLayerTreeLayer)]
             for i, layer in enumerate(layers):
                 self.apply_styles_to_layer(layer, qml_files)
-                # Update the progress bar for each layer processed
-                self.progress_bar.setValue(i + 1)
+                processed_layers.add(layer)
+                self.progress_bar.setValue(self.progress_bar.value() + 1)
 
             # Rearrange layers within the selected group according to layer_order
             self.rearrange_layers(selected_group, layers, layer_order)
@@ -191,9 +211,25 @@ class MyQGISPlugin:
             # Remove duplicate layers
             self.remove_duplicate_layers(selected_group)
 
+        # Regular expression pattern to match a 14-digit number at the start of the layer name
+        digit_pattern = re.compile(r'^\d{14}')
+
+        # Process layers outside the selected groups
+        for layer in outside_layers:
+            # Check if the layer name starts with a 14-digit number
+            if digit_pattern.match(layer.name()):
+                try:
+                    layer.loadNamedStyle(outside_group_qml)
+                    layer.triggerRepaint()
+                except Exception as e:
+                    iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
+            # Update the progress bar for each layer processed
+            self.progress_bar.setValue(self.progress_bar.value() + 1)
+
         # Ensure the progress bar reaches 100%
         self.progress_bar.setValue(total_layers)
-        iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, and duplicates removed for selected groups.")
+        iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, and duplicates removed for selected groups. Styles applied to layers outside the selected groups.")
+
 
 
 
