@@ -16,8 +16,8 @@ Apply QML Style Manager is a powerful QGIS plugin designed to streamline the pro
 - **Efficient Layer Management:** Manage and organize large datasets more effectively by automatically applying styles and removing duplicates.
 - **Batch Processing:** Apply styles to multiple layer groups in one go, saving time and reducing manual errors.
 
-## Installation
-Install the plugin through the QGIS Plugin Manager. Ensure that the `qml_styles.json` file is properly configured and located in the selected folder.
+<!-- ## Installation
+Install the plugin through the QGIS Plugin Manager. Ensure that the `qml_styles.json` file is properly configured and located in the selected folder. -->
 
 ## Usage
 1. Launch the plugin from the QGIS toolbar.
