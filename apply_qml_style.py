@@ -11,7 +11,7 @@ class MyQGISPlugin:
         self.iface = iface
         self.plugin_dir = os.path.dirname(__file__)
         self.actions = []
-        self.menu = 'My QGIS Plugin'
+        self.menu = 'GMD Plugins'
         self.qml_folder = None
 
         # Load the saved folder path if it exists
@@ -67,7 +67,7 @@ class MyQGISPlugin:
             self.folder_label.setText(f"Selected Folder: .../{display_folder}")
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.0 build 1.37")
+        version_label = QLabel("Version: 5.0 build 1.38")
         layout.addWidget(version_label)
 
         dialog.setLayout(layout)
