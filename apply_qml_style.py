@@ -164,7 +164,8 @@ class MyQGISPlugin:
             'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml')
         }
 
-        outside_group_qml = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
+        outside_group_qml_11 = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
+        outside_group_qml_12 = os.path.join(self.qml_folder, '12. 2024 POPCEN-CBMS F2 MP.qml')
 
         layer_order = ['river', 'road', 'block', 'ea2024', 'bgy', 'landmark', 'bldg_point']
 
@@ -219,8 +220,14 @@ class MyQGISPlugin:
             # Check if the layer name starts with a 14-digit number
             if digit_pattern.match(layer.name()):
                 try:
-                    layer.loadNamedStyle(outside_group_qml)
+                    # Apply 11th QML style first
+                    layer.loadNamedStyle(outside_group_qml_11)
                     layer.triggerRepaint()
+
+                    # Then apply 12th QML style
+                    layer.loadNamedStyle(outside_group_qml_12)
+                    layer.triggerRepaint()
+
                 except Exception as e:
                     iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
             # Update the progress bar for each layer processed
@@ -229,7 +236,6 @@ class MyQGISPlugin:
         # Ensure the progress bar reaches 100%
         self.progress_bar.setValue(total_layers)
         iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, and duplicates removed for selected groups. Styles applied to layers outside the selected groups.")
-
 
 
 
