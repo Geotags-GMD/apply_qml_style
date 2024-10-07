@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from qgis.core import QgsProject, QgsLayerTreeLayer
 from qgis.utils import iface
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem
@@ -12,9 +13,9 @@ class MyQGISPlugin:
         self.actions = []
         self.menu = 'GMD Plugins'
         self.qml_folder = None
-
-        # Load the saved folder path if it exists
+        self.qml_config = None
         self.load_saved_folder()
+        self.load_qml_config()
 
     def initGui(self):
         icon_path = os.path.join(self.plugin_dir, 'icon.png')
@@ -66,7 +67,7 @@ class MyQGISPlugin:
             self.folder_label.setText(f"Selected Folder: .../{display_folder}")
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.2 build 5")
+        version_label = QLabel("Version: 5.3 build 1")
         layout.addWidget(version_label)
 
         dialog.setLayout(layout)
@@ -76,14 +77,12 @@ class MyQGISPlugin:
         folder = QFileDialog.getExistingDirectory(None, "Select QML Folder")
         if folder:
             self.qml_folder = folder
-
-            # Display only the last part of the path
             display_folder = os.path.basename(folder)
             self.folder_label.setText(f"Selected Folder: .../{display_folder}")
-
-            # Save the folder path to a JSON file
             with open(self.get_folder_path_file(), 'w') as f:
                 json.dump({'folder': folder}, f)
+            self.load_qml_config()
+            self.populate_layer_groups()
 
     def get_folder_path_file(self):
         return os.path.join(self.plugin_dir, 'folder_path.json')
@@ -95,13 +94,29 @@ class MyQGISPlugin:
                 data = json.load(f)
                 self.qml_folder = data.get('folder', '')
 
+    def load_qml_config(self):
+        if self.qml_folder:
+            qml_config_path = os.path.join(self.qml_folder, 'qml_config.json')
+            try:
+                with open(qml_config_path, 'r') as f:
+                    self.qml_config = json.load(f)
+            except FileNotFoundError:
+                iface.messageBar().pushWarning("Warning", f"QML configuration file not found: {qml_config_path}")
+                self.qml_config = None
+            except json.JSONDecodeError:
+                iface.messageBar().pushWarning("Warning", f"Invalid JSON in QML configuration file: {qml_config_path}")
+                self.qml_config = None
+
     def populate_layer_groups(self):
-        """Populate the list widget with layer groups ending with '_2024maplayers'."""
         self.group_listwidget.clear()
+        if self.qml_config is None:
+            iface.messageBar().pushWarning("Warning", "No valid QML configuration loaded. Layer groups not populated.")
+            return
         root = QgsProject.instance().layerTreeRoot()
         groups = root.findGroups()
+        config_groups = self.qml_config.get('layer_groups', [])
         for group in groups:
-            if group.name().endswith('_2024maplayers'):
+            if any(group.name().endswith(suffix) for suffix in config_groups):
                 item = QListWidgetItem(group.name())
                 self.group_listwidget.addItem(item)
 
@@ -157,7 +172,7 @@ class MyQGISPlugin:
         qml_config_path = os.path.join(self.qml_folder, 'qml_config.json')
         try:
             with open(qml_config_path, 'r') as f:
-                qml_config = json.load(f)
+                self.qml_config = json.load(f)
         except FileNotFoundError:
             iface.messageBar().pushCritical("Error", f"QML configuration file not found: {qml_config_path}")
             return
@@ -165,9 +180,9 @@ class MyQGISPlugin:
             iface.messageBar().pushCritical("Error", f"Invalid JSON in QML configuration file: {qml_config_path}")
             return
 
-        qml_files = {key: os.path.join(self.qml_folder, value) for key, value in qml_config.get('qml_files', {}).items()}
-        outside_group_qml = [os.path.join(self.qml_folder, qml) for qml in qml_config.get('outside_group_qml', [])]
-        layer_order = qml_config.get('layer_order', [])
+        qml_files = {key: os.path.join(self.qml_folder, value) for key, value in self.qml_config['qml_files'].items()}
+        outside_group_qml = [os.path.join(self.qml_folder, qml) for qml in self.qml_config['outside_group_qml']]
+        layer_order = self.qml_config['layer_order']
 
         root = QgsProject.instance().layerTreeRoot()
         total_layers = 0
@@ -213,7 +228,7 @@ class MyQGISPlugin:
 
         # Process layers outside the selected groups
         for layer in outside_layers:
-            if self.should_apply_outside_group_style(layer, qml_config):
+            if self.should_apply_outside_group_style(layer):
                 for qml_file in outside_group_qml:
                     try:
                         layer.loadNamedStyle(qml_file)
@@ -226,16 +241,22 @@ class MyQGISPlugin:
         self.progress_bar.setValue(total_layers)
         iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, and duplicates removed for selected groups. Styles applied to layers outside the selected groups.")
 
-    def should_apply_outside_group_style(self, layer, qml_config):
-        """Check if the layer should have outside group styles applied based on the config."""
-        pattern = qml_config.get('outside_group_pattern', r'^\d{14}')
-        import re
-        return re.match(pattern, layer.name()) is not None
+    def should_apply_outside_group_style(self, layer):
+        """Determine if a layer should have styles applied from 'outside_group_qml'."""
+        if self.qml_config is None:
+            return False
 
+        # Fetch the regex pattern from the config
+        pattern = self.qml_config.get('outside_group_pattern', r'^\d{14}')
 
+        # Fetch additional keywords from the config
+        keywords = self.qml_config.get('additional_conditions', {}).get('keywords', [])
+        
+        # Check if the layer name matches the regex pattern
+        matches_pattern = re.match(pattern, layer.name()) is not None
+        
+        # Check if the layer name contains any of the keywords
+        matches_keyword = any(keyword in layer.name().lower() for keyword in keywords)
 
-
-
-
-
-
+        # Return True if either condition is met
+        return matches_pattern or matches_keyword
