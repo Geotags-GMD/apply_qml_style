@@ -67,7 +67,7 @@ class MyQGISPlugin:
             self.folder_label.setText(f"Selected Folder: .../{display_folder}")
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.3 build 1")
+        version_label = QLabel("Version: 5.3 build 1 - beta")
         layout.addWidget(version_label)
 
         dialog.setLayout(layout)
