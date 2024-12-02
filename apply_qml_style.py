@@ -1,10 +1,10 @@
-
 import os
 import json , re
 from qgis.core import QgsProject, QgsLayerTreeLayer, QgsLayerTreeGroup
 from qgis.utils import iface
-from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem
+from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox
 from qgis.PyQt.QtGui import QIcon
+import requests
 
 class MyQGISPlugin:
     def __init__(self, iface):
@@ -13,9 +13,11 @@ class MyQGISPlugin:
         self.actions = []
         self.menu = 'GMD Plugins'
         self.qml_folder = None
-
+        self.json_file = "qml_files.json"  # The JSON file to load the QML names
+        self.github_repo = "https://raw.githubusercontent.com/kentemman-gmd/qml-store/refs/heads/main/qml-files/"
         # Load the saved folder path if it exists
         self.load_saved_folder()
+        self.qml_files = self.load_qml_files()
 
     def initGui(self):
         icon_path = os.path.join(self.plugin_dir, 'icon.png')
@@ -40,7 +42,18 @@ class MyQGISPlugin:
 
         self.select_button = QPushButton("Select Folder")
         self.select_button.clicked.connect(self.select_folder)
-        layout.addWidget(self.select_button)
+        self.github_repo = "https://raw.githubusercontent.com/kentemman-gmd/qml-store/refs/heads/main/qml-files/"
+        # Create a small update button
+        self.update_button = QPushButton("Update QML")
+        self.update_button.setFixedSize(70, 23)  # Set a small size for the button
+        self.update_button.clicked.connect(self.update_qml)  # Connect the button to the update function
+        
+        # Add both buttons to a horizontal layout
+        button_layout = QHBoxLayout()  # Change to QHBoxLayout for horizontal arrangement
+        button_layout.addWidget(self.select_button)
+        button_layout.addWidget(self.update_button)
+
+        layout.addLayout(button_layout)  # Add the button layout to the main layout
 
         # ListWidget to select multiple layer groups
         self.group_listwidget = QListWidget()
@@ -66,9 +79,16 @@ class MyQGISPlugin:
             display_folder = os.path.basename(self.qml_folder)
             self.folder_label.setText(f"Selected Folder: .../{display_folder}")
 
+         # Create a label to display messages
+        self.label = QLabel("")
+        layout.addWidget(self.label)  # Add the label to the layout
+        self.label.setVisible(False)  # Initially hide the label
+
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.0 build 1.38")
+        version_label = QLabel("Version: 5.22")
         layout.addWidget(version_label)
+
+       
 
         dialog.setLayout(layout)
         dialog.exec_()
@@ -102,7 +122,7 @@ class MyQGISPlugin:
         root = QgsProject.instance().layerTreeRoot()
         groups = root.findGroups()
         for group in groups:
-            if group.name().endswith('_2024maplayers'):
+            if group.name().endswith('Base Layers') or group.name().endswith('_2024maplayers'):
                 item = QListWidgetItem(group.name())
                 self.group_listwidget.addItem(item)
 
@@ -156,17 +176,21 @@ class MyQGISPlugin:
 
         qml_files = {
             'bgy': os.path.join(self.qml_folder, '7. 2024 POPCEN-CBMS Barangay.qml'),
-            'ea2024': os.path.join(self.qml_folder, '6. 2024 POPCEN-CBMS EA.qml'),
+            'ea': os.path.join(self.qml_folder, '6. 2024 POPCEN-CBMS EA.qml'),
             'block': os.path.join(self.qml_folder, '5. 2024 POPCEN-CBMS Block.qml'),
             'landmark': os.path.join(self.qml_folder, '10. 2024 POPCEN-CBMS Landmark.qml'),
             'road': os.path.join(self.qml_folder, '8. 2024 POPCEN-CBMS Road.qml'),
             'river': os.path.join(self.qml_folder, '9. 2024 POPCEN-CBMS River.qml'),
-            'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml')
+            'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
+            'bldgpts': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
+            'form8a': os.path.join(self.qml_folder, '2. 2024 POPCEN-CBMS Form 8A.qml'),
+            'form8b': os.path.join(self.qml_folder, '3. 2024 POPCEN-CBMS Form 8B.qml')
         }
 
-        outside_group_qml = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
+        outside_group_qml_11 = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
+        outside_group_qml_12 = os.path.join(self.qml_folder, '12. 2024 POPCEN-CBMS F2 MP.qml')
 
-        layer_order = ['river', 'road', 'block', 'ea2024', 'bgy', 'landmark', 'bldg_point']
+        layer_order = ['river', 'road', 'block', 'ea', 'bgy', 'landmark', 'bldg_point','bldgpts']
 
         root = QgsProject.instance().layerTreeRoot()
         total_layers = 0
@@ -219,17 +243,84 @@ class MyQGISPlugin:
             # Check if the layer name starts with a 14-digit number
             if digit_pattern.match(layer.name()):
                 try:
-                    layer.loadNamedStyle(outside_group_qml)
+                    # Apply 11th QML style first
+                    layer.loadNamedStyle(outside_group_qml_11)
                     layer.triggerRepaint()
+
+                    # Then apply 12th QML style
+                    layer.loadNamedStyle(outside_group_qml_12)
+                    layer.triggerRepaint()
+
                 except Exception as e:
                     iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
             # Update the progress bar for each layer processed
             self.progress_bar.setValue(self.progress_bar.value() + 1)
 
+        # Change to find any group ending with 'Form 8'
+        form8_group = next((group for group in root.findGroups() if group.name().endswith('Form 8')), None)
+        if form8_group:
+            form8_layers = [node.layer() for node in form8_group.children() if isinstance(node, QgsLayerTreeLayer)]
+            for layer in form8_layers:
+                if layer.name().endswith('_SF'):
+                    layer.loadNamedStyle(qml_files['form8b'])
+                    layer.triggerRepaint()
+                elif layer.name().endswith('_GP'):
+                    layer.loadNamedStyle(qml_files['form8a'])
+                    layer.triggerRepaint()
+
         # Ensure the progress bar reaches 100%
         self.progress_bar.setValue(total_layers)
         iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, and duplicates removed for selected groups. Styles applied to layers outside the selected groups.")
 
+    def update_qml(self):
+        if not self.qml_folder:
+            self.label.setText("Please select a QML folder first.")
+            return
+
+        self.label.setVisible(True)  # Show the label at the start of the update
+        self.label.setText("Updating QML files...")  # Set initial message
+
+        total_files = len(self.qml_files)
+        self.progress_bar.setMaximum(total_files)
+        self.progress_bar.setValue(0)
+
+        for index, qml_file in enumerate(self.qml_files):
+            try:
+                url = f"{self.github_repo}{qml_file}"
+                response = requests.get(url, stream=True)
+                response.raise_for_status()  # Raise an error for bad responses
+
+                qml_path = os.path.join(self.qml_folder, qml_file)
+
+                with open(qml_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:  # Filter out keep-alive new chunks
+                            f.write(chunk)
+
+                self.label.setText(f"Updated QML file downloaded: {qml_path}")
+            except Exception as e:
+                self.label.setText(f"Error downloading {qml_file}: {str(e)}")
+
+            self.progress_bar.setValue(index + 1)
+
+        self.label.setText("Download complete!")  # Final message
+        # Optionally hide the label after completion
+        self.label.setVisible(False)
+
+        # Add message box to confirm completion
+        QMessageBox.information(None, "Update Complete", "All QML files have been successfully updated.")
+
+    def load_qml_files(self):
+        """Load QML file names from a JSON file."""
+        url = f"{self.github_repo}{self.json_file}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an error for bad responses
+            json_data = response.json()
+            return json_data.get("qml_files", [])
+        except Exception as e:
+            self.label.setText(f"Error loading QML files: {str(e)}")
+            return []
 
 
 
