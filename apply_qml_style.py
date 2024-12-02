@@ -85,7 +85,7 @@ class MyQGISPlugin:
         self.label.setVisible(False)  # Initially hide the label
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.22")
+        version_label = QLabel("Version: 5.23")
         layout.addWidget(version_label)
 
        
