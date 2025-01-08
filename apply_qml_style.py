@@ -42,7 +42,7 @@ class MyQGISPlugin:
 
         self.select_button = QPushButton("Select Folder")
         self.select_button.clicked.connect(self.select_folder)
-        self.github_repo = "https://raw.githubusercontent.com/kentemman-gmd/qml-store/refs/heads/main/qml-files/"
+        self.github_repo = "https://raw.githubusercontent.com/Geotags-GMD/qml-store/refs/heads/main/qml-files/"
         # Create a small update button
         self.update_button = QPushButton("Update QML")
         self.update_button.setFixedSize(70, 23)  # Set a small size for the button
@@ -85,7 +85,7 @@ class MyQGISPlugin:
         self.label.setVisible(False)  # Initially hide the label
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.22")
+        version_label = QLabel("Version: 5.23")
         layout.addWidget(version_label)
 
        
@@ -261,10 +261,10 @@ class MyQGISPlugin:
             form8_layers = [node.layer() for node in form8_group.children() if isinstance(node, QgsLayerTreeLayer)]
             for layer in form8_layers:
                 if layer.name().endswith('_SF'):
-                    layer.loadNamedStyle(qml_files['form8b'])
+                    layer.loadNamedStyle(qml_files['form8a'])
                     layer.triggerRepaint()
                 elif layer.name().endswith('_GP'):
-                    layer.loadNamedStyle(qml_files['form8a'])
+                    layer.loadNamedStyle(qml_files['form8b'])
                     layer.triggerRepaint()
 
         # Ensure the progress bar reaches 100%
