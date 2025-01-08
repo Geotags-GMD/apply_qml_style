@@ -1,6 +1,6 @@
 import os
-import json , re
-from qgis.core import QgsProject, QgsLayerTreeLayer, QgsLayerTreeGroup
+import json
+from qgis.core import QgsProject, QgsLayerTreeLayer
 from qgis.utils import iface
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox, QComboBox
 from qgis.PyQt.QtGui import QIcon
@@ -184,6 +184,7 @@ class MyQGISPlugin:
             iface.messageBar().pushCritical("Error", "Please select at least one layer group.")
             return
 
+
         qml_files = {
             'bgy': os.path.join(self.qml_folder, '7. 2024 POPCEN-CBMS Barangay.qml'),
             'ea': os.path.join(self.qml_folder, '6. 2024 POPCEN-CBMS EA.qml'),
@@ -230,11 +231,10 @@ class MyQGISPlugin:
         for selected_group_name in selected_groups:
             selected_group = root.findGroup(selected_group_name)
             if not selected_group:
-                iface.messageBar().pushCritical("Error", f"Layer group '{selected_group_name}' not found.")
                 continue
 
             layers = [node.layer() for node in selected_group.children() if isinstance(node, QgsLayerTreeLayer)]
-            for i, layer in enumerate(layers):
+            for layer in layers:
                 self.apply_styles_to_layer(layer, qml_files)
                 processed_layers.add(layer)
                 self.progress_bar.setValue(self.progress_bar.value() + 1)
@@ -245,11 +245,9 @@ class MyQGISPlugin:
             # Remove duplicate layers
             self.remove_duplicate_layers(selected_group)
 
-        # Regular expression pattern to match a 14-digit number at the start of the layer name
-        digit_pattern = re.compile(r'^\d{14}')
-
         # Process layers outside the selected groups
         for layer in outside_layers:
+
             # Check if the layer name starts with a 14-digit number
             if digit_pattern.match(layer.name()):
                 try:
@@ -264,6 +262,7 @@ class MyQGISPlugin:
                 except Exception as e:
                     iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
             # Update the progress bar for each layer processed
+
             self.progress_bar.setValue(self.progress_bar.value() + 1)
 
         # Change to find any group ending with 'Form 8'
@@ -281,6 +280,7 @@ class MyQGISPlugin:
         # Ensure the progress bar reaches 100%
         self.progress_bar.setValue(total_layers)
         iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, and duplicates removed for selected groups. Styles applied to layers outside the selected groups.")
+
 
     def update_qml(self):
         if not self.qml_folder:
