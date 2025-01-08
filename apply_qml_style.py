@@ -2,7 +2,7 @@ import os
 import json , re
 from qgis.core import QgsProject, QgsLayerTreeLayer, QgsLayerTreeGroup
 from qgis.utils import iface
-from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox
+from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox, QComboBox
 from qgis.PyQt.QtGui import QIcon
 import requests
 
@@ -40,20 +40,30 @@ class MyQGISPlugin:
         self.folder_label = QLabel("Select the folder containing QML files:")
         layout.addWidget(self.folder_label)
 
+        
+
+        # Buttons layout
+        button_layout = QHBoxLayout()
         self.select_button = QPushButton("Select Folder")
         self.select_button.clicked.connect(self.select_folder)
-        self.github_repo = "https://raw.githubusercontent.com/Geotags-GMD/qml-store/refs/heads/main/qml-files/"
-        # Create a small update button
         self.update_button = QPushButton("Update QML")
-        self.update_button.setFixedSize(70, 23)  # Set a small size for the button
-        self.update_button.clicked.connect(self.update_qml)  # Connect the button to the update function
+        self.update_button.setFixedSize(70, 23)
+        self.update_button.clicked.connect(self.update_qml)
         
-        # Add both buttons to a horizontal layout
-        button_layout = QHBoxLayout()  # Change to QHBoxLayout for horizontal arrangement
+        # # Run button
+        # self.run_button = QPushButton("Run")
+        # self.run_button.clicked.connect(self.run_selected_process)
+        
         button_layout.addWidget(self.select_button)
         button_layout.addWidget(self.update_button)
+        # button_layout.addWidget(self.run_button)
+        layout.addLayout(button_layout)
 
-        layout.addLayout(button_layout)  # Add the button layout to the main layout
+        # Add dropdown menu
+        self.process_combo = QComboBox()
+        # layout.addWidget(QLabel("Select Style:"))
+        self.process_combo.addItems(["Select Style Format", "Geotagging Style", "Processing Style"])
+        layout.addWidget(self.process_combo)
 
         # ListWidget to select multiple layer groups
         self.group_listwidget = QListWidget()
@@ -65,7 +75,7 @@ class MyQGISPlugin:
         self.populate_layer_groups()
 
         self.run_button = QPushButton("Run")
-        self.run_button.clicked.connect(self.run)
+        self.run_button.clicked.connect(self.run_selected_process)
         layout.addWidget(self.run_button)
 
         # Add a progress bar to the dialog
@@ -85,7 +95,7 @@ class MyQGISPlugin:
         self.label.setVisible(False)  # Initially hide the label
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.23")
+        version_label = QLabel("Version: 5.24")
         layout.addWidget(version_label)
 
        
@@ -322,10 +332,23 @@ class MyQGISPlugin:
             self.label.setText(f"Error loading QML files: {str(e)}")
             return []
 
+    def run_selected_process(self):
+        selected = self.process_combo.currentText()
+
+        if selected == "Select Style Format":
+            self.iface.messageBar().pushWarning("Warning", "Please select a valid style format!")
+            return
+
+        if selected == "Geotagging Style":
+            self.run()
+        elif selected == "Processing Style":
+            self.run_processing()
 
 
+    # def run_geotagging(self):
+    #     # Implement geotagging logic here
+    #     iface.messageBar().pushInfo("Geotagging", "Running geotagging process...")
 
-
-
-
-
+    def run_processing(self):
+        # Implement processing logic here 
+        iface.messageBar().pushWarning("Processing", "Ongoing Development for Processing Style...")
