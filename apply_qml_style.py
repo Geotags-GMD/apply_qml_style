@@ -1,5 +1,5 @@
 import os
-import json
+import json , re
 from qgis.core import QgsProject, QgsLayerTreeLayer
 from qgis.utils import iface
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox, QComboBox
@@ -176,7 +176,7 @@ class MyQGISPlugin:
 
 
     #Activity Geotagging Style
-    def run(self):
+    def run_geotagging(self):
         if not self.qml_folder:
             iface.messageBar().pushCritical("Error", "Please select a folder first.")
             return
@@ -247,6 +247,9 @@ class MyQGISPlugin:
             # Remove duplicate layers
             self.remove_duplicate_layers(selected_group)
 
+        # Regular expression pattern to match a 14-digit number at the start of the layer name
+        digit_pattern = re.compile(r'^\d{14}')
+
         # Process layers outside the selected groups
         for layer in outside_layers:
 
@@ -263,8 +266,8 @@ class MyQGISPlugin:
 
                 except Exception as e:
                     iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
+                    
             # Update the progress bar for each layer processed
-
             self.progress_bar.setValue(self.progress_bar.value() + 1)
 
         # Change to find any group ending with 'Form 8'
@@ -342,7 +345,7 @@ class MyQGISPlugin:
             return
 
         if selected == "Geotagging Style":
-            self.run()
+            self.run_geotagging()
         elif selected == "Processing Style":
             self.run_processing()
 
