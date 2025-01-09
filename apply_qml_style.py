@@ -197,7 +197,9 @@ class MyQGISPlugin:
             'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
             'bldgpts': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
             'form8a': os.path.join(self.qml_folder, '2. 2024 POPCEN-CBMS Form 8A.qml'),
-            'form8b': os.path.join(self.qml_folder, '3. 2024 POPCEN-CBMS Form 8B.qml')
+            'form8b': os.path.join(self.qml_folder, '3. 2024 POPCEN-CBMS Form 8B.qml'),
+            'refSF': os.path.join(self.qml_folder, 'SF Reference Data.qml'),
+            'refGP': os.path.join(self.qml_folder, 'GP Reference Data.qml')
         }
 
         outside_group_qml_11 = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
@@ -266,7 +268,7 @@ class MyQGISPlugin:
 
                 except Exception as e:
                     iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
-                    
+
             # Update the progress bar for each layer processed
             self.progress_bar.setValue(self.progress_bar.value() + 1)
 
@@ -280,6 +282,18 @@ class MyQGISPlugin:
                     layer.triggerRepaint()
                 elif layer.name().endswith('_GP'):
                     layer.loadNamedStyle(qml_files['form8b'])
+                    layer.triggerRepaint()
+
+         # Change to find any group ending with 'SFGP_RefData'
+        refData = next((group for group in root.findGroups() if group.name().endswith('SFGP_RefData')), None)
+        if refData:
+            refDatalayer = [node.layer() for node in refData.children() if isinstance(node, QgsLayerTreeLayer)]
+            for layer in refDatalayer:
+                if layer.name().endswith('SF_RefData'):
+                    layer.loadNamedStyle(qml_files['refSF'])
+                    layer.triggerRepaint()
+                elif layer.name().endswith('GP_RefData'):
+                    layer.loadNamedStyle(qml_files['refGP'])
                     layer.triggerRepaint()
 
         # Ensure the progress bar reaches 100%
