@@ -289,12 +289,13 @@ class MyQGISPlugin:
         if refData:
             refDatalayer = [node.layer() for node in refData.children() if isinstance(node, QgsLayerTreeLayer)]
             for layer in refDatalayer:
-                if layer.name().endswith('SF_RefData'):
-                    layer.loadNamedStyle(qml_files['refSF'])
-                    layer.triggerRepaint()
-                elif layer.name().endswith('GP_RefData'):
-                    layer.loadNamedStyle(qml_files['refGP'])
-                    layer.triggerRepaint()
+                    if 'SF_RefData' in layer.name():
+                        layer.loadNamedStyle(qml_files['refSF'])
+                        layer.triggerRepaint()
+                    elif 'GP_RefData' in layer.name():
+                        layer.loadNamedStyle(qml_files['refGP'])
+                        layer.triggerRepaint()
+
 
         # Ensure the progress bar reaches 100%
         self.progress_bar.setValue(total_layers)
