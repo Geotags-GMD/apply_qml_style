@@ -14,7 +14,7 @@ class MyQGISPlugin:
         self.menu = 'GMD Plugins'
         self.qml_folder = None
         self.json_file = "qml_files.json"  # The JSON file to load the QML names
-        self.github_repo = "https://raw.githubusercontent.com/kentemman-gmd/qml-store/refs/heads/main/qml-files/"
+        self.github_repo = "https://raw.githubusercontent.com/Geotags-GMD/qml-store/refs/heads/main/qml-files/"
         # Load the saved folder path if it exists
         self.load_saved_folder()
         self.qml_files = self.load_qml_files()
