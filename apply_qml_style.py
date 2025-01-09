@@ -174,6 +174,8 @@ class MyQGISPlugin:
         for node in nodes_to_remove:
             group.removeChildNode(node)
 
+
+    #Activity Geotagging Style
     def run(self):
         if not self.qml_folder:
             iface.messageBar().pushCritical("Error", "Please select a folder first.")
@@ -345,10 +347,7 @@ class MyQGISPlugin:
             self.run_processing()
 
 
-    # def run_geotagging(self):
-    #     # Implement geotagging logic here
-    #     iface.messageBar().pushInfo("Geotagging", "Running geotagging process...")
-
+    #Activity Processing Style
     def run_processing(self):
         # Implement processing logic here 
         iface.messageBar().pushWarning("Processing", "Ongoing Development for Processing Style...")
