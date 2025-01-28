@@ -1,8 +1,8 @@
 import os
-import json
+import json , re
 from qgis.core import QgsProject, QgsLayerTreeLayer
 from qgis.utils import iface
-from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox
+from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox, QComboBox
 from qgis.PyQt.QtGui import QIcon
 import requests
 
@@ -14,7 +14,7 @@ class MyQGISPlugin:
         self.menu = 'GMD Plugins'
         self.qml_folder = None
         self.json_file = "qml_files.json"  # The JSON file to load the QML names
-        self.github_repo = "https://raw.githubusercontent.com/kentemman-gmd/qml-store/refs/heads/main/qml-files/"
+        self.github_repo = "https://raw.githubusercontent.com/Geotags-GMD/qml-store/refs/heads/main/qml-files/"
         # Load the saved folder path if it exists
         self.load_saved_folder()
         self.qml_files = self.load_qml_files()
@@ -40,20 +40,30 @@ class MyQGISPlugin:
         self.folder_label = QLabel("Select the folder containing QML files:")
         layout.addWidget(self.folder_label)
 
+        
+
+        # Buttons layout
+        button_layout = QHBoxLayout()
         self.select_button = QPushButton("Select Folder")
         self.select_button.clicked.connect(self.select_folder)
-        self.github_repo = "https://raw.githubusercontent.com/Geotags-GMD/qml-store/refs/heads/main/qml-files/"
-        # Create a small update button
         self.update_button = QPushButton("Update QML")
-        self.update_button.setFixedSize(70, 23)  # Set a small size for the button
-        self.update_button.clicked.connect(self.update_qml)  # Connect the button to the update function
+        self.update_button.setFixedSize(70, 23)
+        self.update_button.clicked.connect(self.update_qml)
         
-        # Add both buttons to a horizontal layout
-        button_layout = QHBoxLayout()  # Change to QHBoxLayout for horizontal arrangement
+        # # Run button
+        # self.run_button = QPushButton("Run")
+        # self.run_button.clicked.connect(self.run_selected_process)
+        
         button_layout.addWidget(self.select_button)
         button_layout.addWidget(self.update_button)
+        # button_layout.addWidget(self.run_button)
+        layout.addLayout(button_layout)
 
-        layout.addLayout(button_layout)  # Add the button layout to the main layout
+        # Add dropdown menu
+        self.process_combo = QComboBox()
+        # layout.addWidget(QLabel("Select Style:"))
+        self.process_combo.addItems(["Select Style Format", "Geotagging", "Processing"])
+        layout.addWidget(self.process_combo)
 
         # ListWidget to select multiple layer groups
         self.group_listwidget = QListWidget()
@@ -65,7 +75,7 @@ class MyQGISPlugin:
         self.populate_layer_groups()
 
         self.run_button = QPushButton("Run")
-        self.run_button.clicked.connect(self.run)
+        self.run_button.clicked.connect(self.run_selected_process)
         layout.addWidget(self.run_button)
 
         # Add a progress bar to the dialog
@@ -85,7 +95,7 @@ class MyQGISPlugin:
         self.label.setVisible(False)  # Initially hide the label
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.23")
+        version_label = QLabel("Version: 5.24")
         layout.addWidget(version_label)
 
        
@@ -164,7 +174,9 @@ class MyQGISPlugin:
         for node in nodes_to_remove:
             group.removeChildNode(node)
 
-    def run(self):
+
+    #Activity Geotagging Style
+    def run_geotagging(self):
         if not self.qml_folder:
             iface.messageBar().pushCritical("Error", "Please select a folder first.")
             return
@@ -185,7 +197,9 @@ class MyQGISPlugin:
             'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
             'bldgpts': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
             'form8a': os.path.join(self.qml_folder, '2. 2024 POPCEN-CBMS Form 8A.qml'),
-            'form8b': os.path.join(self.qml_folder, '3. 2024 POPCEN-CBMS Form 8B.qml')
+            'form8b': os.path.join(self.qml_folder, '3. 2024 POPCEN-CBMS Form 8B.qml'),
+            'refSF': os.path.join(self.qml_folder, 'SF Reference Data.qml'),
+            'refGP': os.path.join(self.qml_folder, 'GP Reference Data.qml')
         }
 
         outside_group_qml_11 = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
@@ -235,6 +249,9 @@ class MyQGISPlugin:
             # Remove duplicate layers
             self.remove_duplicate_layers(selected_group)
 
+        # Regular expression pattern to match a 14-digit number at the start of the layer name
+        digit_pattern = re.compile(r'^\d{14}')
+
         # Process layers outside the selected groups
         for layer in outside_layers:
 
@@ -251,8 +268,8 @@ class MyQGISPlugin:
 
                 except Exception as e:
                     iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
-            # Update the progress bar for each layer processed
 
+            # Update the progress bar for each layer processed
             self.progress_bar.setValue(self.progress_bar.value() + 1)
 
         # Change to find any group ending with 'Form 8'
@@ -266,6 +283,19 @@ class MyQGISPlugin:
                 elif layer.name().endswith('_GP'):
                     layer.loadNamedStyle(qml_files['form8b'])
                     layer.triggerRepaint()
+
+         # Change to find any group ending with 'SFGP_RefData'
+        refData = next((group for group in root.findGroups() if group.name().endswith('SFGP_RefData')), None)
+        if refData:
+            refDatalayer = [node.layer() for node in refData.children() if isinstance(node, QgsLayerTreeLayer)]
+            for layer in refDatalayer:
+                    if 'SF_RefData' in layer.name():
+                        layer.loadNamedStyle(qml_files['refSF'])
+                        layer.triggerRepaint()
+                    elif 'GP_RefData' in layer.name():
+                        layer.loadNamedStyle(qml_files['refGP'])
+                        layer.triggerRepaint()
+
 
         # Ensure the progress bar reaches 100%
         self.progress_bar.setValue(total_layers)
@@ -323,10 +353,143 @@ class MyQGISPlugin:
             return []
 
 
+    # Select the process to run
+    def run_selected_process(self):
+        selected = self.process_combo.currentText()
+
+        if selected == "Select Style Format":
+            self.iface.messageBar().pushWarning("Warning", "Please select a valid style format!")
+            return
+
+        if selected == "Geotagging":
+            self.run_geotagging()
+        elif selected == "Processing":
+            self.run_processing()
 
 
+    #Activity Processing Style
+    def run_processing(self):
+        if not self.qml_folder:
+            iface.messageBar().pushCritical("Error", "Please select a folder first.")
+            return
+
+        selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
+        if not selected_groups:
+            iface.messageBar().pushCritical("Error", "Please select at least one layer group.")
+            return
 
 
+        qml_files = {
+            'bgy': os.path.join(self.qml_folder, '7. 2024 POPCEN-CBMS Barangay.qml'),
+            'ea': os.path.join(self.qml_folder, '6. 2024 POPCEN-CBMS EA.qml'),
+            'block': os.path.join(self.qml_folder, '5. 2024 POPCEN-CBMS Block.qml'),
+            'landmark': os.path.join(self.qml_folder, '10. 2024 POPCEN-CBMS Landmark.qml'),
+            'road': os.path.join(self.qml_folder, '8. 2024 POPCEN-CBMS Road.qml'),
+            'river': os.path.join(self.qml_folder, '9. 2024 POPCEN-CBMS River.qml'),
+            'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
+            'bldgpts': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
+            # 'form8a': os.path.join(self.qml_folder, '2. 2024 POPCEN-CBMS Form 8A.qml'),
+            # 'form8b': os.path.join(self.qml_folder, '3. 2024 POPCEN-CBMS Form 8B.qml'),
+            'refSF': os.path.join(self.qml_folder, 'SF Reference Data.qml'),
+            'refGP': os.path.join(self.qml_folder, 'GP Reference Data.qml')
+        }
+
+        outside_group_qml_11 = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
+        outside_group_qml_12 = os.path.join(self.qml_folder, '12. 2024 POPCEN-CBMS F2 MP.qml')
+
+        layer_order = ['river', 'road', 'block', 'ea', 'bgy', 'landmark', 'bldg_point','bldgpts']
+
+        root = QgsProject.instance().layerTreeRoot()
+        total_layers = 0
+
+        # Track layers that have been processed within selected groups
+        processed_layers = set()
+
+        # Process layers within selected groups
+        for selected_group_name in selected_groups:
+            selected_group = root.findGroup(selected_group_name)
+            if not selected_group:
+                iface.messageBar().pushCritical("Error", f"Layer group '{selected_group_name}' not found.")
+                continue
+
+            layers = [node.layer() for node in selected_group.children() if isinstance(node, QgsLayerTreeLayer)]
+            total_layers += len(layers)
+
+        # Add count for layers outside the selected groups
+        all_layers = [node.layer() for node in root.children() if isinstance(node, QgsLayerTreeLayer)]
+        outside_layers = [layer for layer in all_layers if layer not in processed_layers]
+        total_layers += len(outside_layers)
+
+        self.progress_bar.setMaximum(total_layers)
+        self.progress_bar.setValue(0)
+
+        # Process layers within selected groups
+        for selected_group_name in selected_groups:
+            selected_group = root.findGroup(selected_group_name)
+            if not selected_group:
+                continue
+
+            layers = [node.layer() for node in selected_group.children() if isinstance(node, QgsLayerTreeLayer)]
+            for layer in layers:
+                self.apply_styles_to_layer(layer, qml_files)
+                processed_layers.add(layer)
+                self.progress_bar.setValue(self.progress_bar.value() + 1)
+
+            # Rearrange layers within the selected group according to layer_order
+            self.rearrange_layers(selected_group, layers, layer_order)
+            
+            # Remove duplicate layers
+            self.remove_duplicate_layers(selected_group)
+
+        # Regular expression pattern to match a 14-digit number at the start of the layer name
+        digit_pattern = re.compile(r'^\d{14}')
+
+        # Process layers outside the selected groups
+        for layer in outside_layers:
+
+            # Check if the layer name starts with a 14-digit number
+            if digit_pattern.match(layer.name()):
+                try:
+                    # Apply 11th QML style first
+                    layer.loadNamedStyle(outside_group_qml_11)
+                    layer.triggerRepaint()
+
+                    # Then apply 12th QML style
+                    layer.loadNamedStyle(outside_group_qml_12)
+                    layer.triggerRepaint()
+
+                except Exception as e:
+                    iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
+
+            # Update the progress bar for each layer processed
+            self.progress_bar.setValue(self.progress_bar.value() + 1)
+
+        # Change to find any group ending with 'Form 8'
+        # form8_group = next((group for group in root.findGroups() if group.name().endswith('Form 8')), None)
+        # if form8_group:
+        #     form8_layers = [node.layer() for node in form8_group.children() if isinstance(node, QgsLayerTreeLayer)]
+        #     for layer in form8_layers:
+        #         if layer.name().endswith('_SF'):
+        #             layer.loadNamedStyle(qml_files['form8a'])
+        #             layer.triggerRepaint()
+        #         elif layer.name().endswith('_GP'):
+        #             layer.loadNamedStyle(qml_files['form8b'])
+        #             layer.triggerRepaint()
+
+         # Change to find any group ending with 'SFGP_RefData'
+        refData = next((group for group in root.findGroups() if group.name().endswith('SFGP_RefData')), None)
+        if refData:
+            refDatalayer = [node.layer() for node in refData.children() if isinstance(node, QgsLayerTreeLayer)]
+            for layer in refDatalayer:
+                    if 'SF_RefData' in layer.name():
+                        layer.loadNamedStyle(qml_files['refSF'])
+                        layer.triggerRepaint()
+                    elif 'GP_RefData' in layer.name():
+                        layer.loadNamedStyle(qml_files['refGP'])
+                        layer.triggerRepaint()
 
 
+        # Ensure the progress bar reaches 100%
+        self.progress_bar.setValue(total_layers)
+        iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, and duplicates removed for selected groups. Styles applied to layers outside the selected groups.")
 
