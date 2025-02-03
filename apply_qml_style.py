@@ -62,7 +62,7 @@ class MyQGISPlugin:
         # Add dropdown menu
         self.process_combo = QComboBox()
         # layout.addWidget(QLabel("Select Style:"))
-        self.process_combo.addItems(["Select Style Format", "Geotagging", "Processing"])
+        self.process_combo.addItems(["Select Style Format", "Geotagging", "Processing", "Digitize"])
         layout.addWidget(self.process_combo)
 
         # ListWidget to select multiple layer groups
@@ -95,7 +95,7 @@ class MyQGISPlugin:
         self.label.setVisible(False)  # Initially hide the label
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.24")
+        version_label = QLabel("Version: 5.25")
         layout.addWidget(version_label)
 
        
@@ -365,6 +365,8 @@ class MyQGISPlugin:
             self.run_geotagging()
         elif selected == "Processing":
             self.run_processing()
+        elif selected == "Digitize":
+            self.run_digitize()
 
 
     #Activity Processing Style
@@ -394,8 +396,7 @@ class MyQGISPlugin:
             'refGP': os.path.join(self.qml_folder, 'GP Reference Data.qml')
         }
 
-        outside_group_qml_11 = os.path.join(self.qml_folder, '11. 2024 POPCEN-CBMS F2 Digitization.qml')
-        outside_group_qml_12 = os.path.join(self.qml_folder, '12. 2024 POPCEN-CBMS F2 MP.qml')
+      
 
         layer_order = ['river', 'road', 'block', 'ea', 'bgy', 'landmark', 'bldg_point','bldgpts']
 
@@ -441,28 +442,7 @@ class MyQGISPlugin:
             # Remove duplicate layers
             self.remove_duplicate_layers(selected_group)
 
-        # Regular expression pattern to match a 14-digit number at the start of the layer name
-        digit_pattern = re.compile(r'^\d{14}')
-
-        # Process layers outside the selected groups
-        for layer in outside_layers:
-
-            # Check if the layer name starts with a 14-digit number
-            if digit_pattern.match(layer.name()):
-                try:
-                    # Apply 11th QML style first
-                    layer.loadNamedStyle(outside_group_qml_11)
-                    layer.triggerRepaint()
-
-                    # Then apply 12th QML style
-                    layer.loadNamedStyle(outside_group_qml_12)
-                    layer.triggerRepaint()
-
-                except Exception as e:
-                    iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
-
-            # Update the progress bar for each layer processed
-            self.progress_bar.setValue(self.progress_bar.value() + 1)
+    
 
         # Change to find any group ending with 'Form 8'
         # form8_group = next((group for group in root.findGroups() if group.name().endswith('Form 8')), None)
@@ -487,6 +467,93 @@ class MyQGISPlugin:
                     elif 'GP_RefData' in layer.name():
                         layer.loadNamedStyle(qml_files['refGP'])
                         layer.triggerRepaint()
+
+
+        # Ensure the progress bar reaches 100%
+        self.progress_bar.setValue(total_layers)
+        iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, and duplicates removed for selected groups. Styles applied to layers outside the selected groups.")
+
+     #Activity Digitize Style
+    def run_digitize(self):
+        if not self.qml_folder:
+            iface.messageBar().pushCritical("Error", "Please select a folder first.")
+            return
+
+        selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
+        if not selected_groups:
+            iface.messageBar().pushCritical("Error", "Please select at least one layer group.")
+            return
+
+
+        qml_files = {
+            'bgy': os.path.join(self.qml_folder, '7. 2024 POPCEN-CBMS Barangay.qml'),
+            'ea': os.path.join(self.qml_folder, '6. 2024 POPCEN-CBMS EA.qml'),
+            'block': os.path.join(self.qml_folder, '5. 2024 POPCEN-CBMS Block.qml'),
+            'landmark': os.path.join(self.qml_folder, '10. 2024 POPCEN-CBMS Landmark.qml'),
+            'road': os.path.join(self.qml_folder, '8. 2024 POPCEN-CBMS Road.qml'),
+            'river': os.path.join(self.qml_folder, '9. 2024 POPCEN-CBMS River.qml'),
+            'bldg_point': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
+            'bldgpts': os.path.join(self.qml_folder, '4. 2024 POPCEN-CBMS Building Points.qml'),
+            'formSF': os.path.join(self.qml_folder, 'SF Map Digitization.qml'),
+            'formGP': os.path.join(self.qml_folder, 'GP Map Digitization.qml'),
+        }
+
+
+        layer_order = ['river', 'road', 'block', 'ea', 'bgy', 'landmark', 'bldg_point','bldgpts']
+
+        root = QgsProject.instance().layerTreeRoot()
+        total_layers = 0
+
+        # Track layers that have been processed within selected groups
+        processed_layers = set()
+
+        # Process layers within selected groups
+        for selected_group_name in selected_groups:
+            selected_group = root.findGroup(selected_group_name)
+            if not selected_group:
+                iface.messageBar().pushCritical("Error", f"Layer group '{selected_group_name}' not found.")
+                continue
+
+            layers = [node.layer() for node in selected_group.children() if isinstance(node, QgsLayerTreeLayer)]
+            total_layers += len(layers)
+
+        # Add count for layers outside the selected groups
+        all_layers = [node.layer() for node in root.children() if isinstance(node, QgsLayerTreeLayer)]
+        outside_layers = [layer for layer in all_layers if layer not in processed_layers]
+        total_layers += len(outside_layers)
+
+        self.progress_bar.setMaximum(total_layers)
+        self.progress_bar.setValue(0)
+
+        # Process layers within selected groups
+        for selected_group_name in selected_groups:
+            selected_group = root.findGroup(selected_group_name)
+            if not selected_group:
+                continue
+
+            layers = [node.layer() for node in selected_group.children() if isinstance(node, QgsLayerTreeLayer)]
+            for layer in layers:
+                self.apply_styles_to_layer(layer, qml_files)
+                processed_layers.add(layer)
+                self.progress_bar.setValue(self.progress_bar.value() + 1)
+
+            # Rearrange layers within the selected group according to layer_order
+            self.rearrange_layers(selected_group, layers, layer_order)
+            
+            # Remove duplicate layers
+            self.remove_duplicate_layers(selected_group)
+
+      
+        form8_group = next((group for group in root.findGroups() if group.name().endswith('Form 8')), None)
+        if form8_group:
+            form8_layers = [node.layer() for node in form8_group.children() if isinstance(node, QgsLayerTreeLayer)]
+            for layer in form8_layers:
+                if layer.name().endswith('_SF'):
+                    layer.loadNamedStyle(qml_files['formSF'])
+                    layer.triggerRepaint()
+                elif layer.name().endswith('_GP'):
+                    layer.loadNamedStyle(qml_files['formGP'])
+                    layer.triggerRepaint()
 
 
         # Ensure the progress bar reaches 100%
