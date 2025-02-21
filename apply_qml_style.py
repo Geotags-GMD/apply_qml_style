@@ -4,7 +4,57 @@ from qgis.core import QgsProject, QgsLayerTreeLayer
 from qgis.utils import iface
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QVBoxLayout, QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox, QComboBox
 from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import QThread, pyqtSignal
 import requests
+
+class QMLUpdateWorker(QThread):
+    progress = pyqtSignal(int, str)
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+
+    def __init__(self, github_repo, qml_folder, qml_files, json_file):
+        super().__init__()
+        self.github_repo = github_repo
+        self.qml_folder = qml_folder
+        self.qml_files = qml_files
+        self.json_file = json_file
+
+    def run(self):
+        try:
+            # Check for internet connectivity
+            test_url = f"{self.github_repo}{self.json_file}"
+            requests.get(test_url, timeout=5)
+        except requests.ConnectionError:
+            self.error.emit("No Internet Connection. Please check your connection and try again.")
+            return
+        except Exception as e:
+            self.error.emit(f"Error checking connectivity: {str(e)}")
+            return
+
+        total_files = len(self.qml_files)
+        self.progress.emit(0, f"Starting download of {total_files} files...")
+
+        for index, qml_file in enumerate(self.qml_files):
+            try:
+                url = f"{self.github_repo}{qml_file}"
+                response = requests.get(url, stream=True)
+                response.raise_for_status()
+
+                qml_path = os.path.join(self.qml_folder, qml_file)
+                os.makedirs(os.path.dirname(qml_path), exist_ok=True)
+
+                with open(qml_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+
+                progress = int(((index + 1) / total_files) * 100)
+                self.progress.emit(progress, f"Updated QML file: {qml_file}")
+            except Exception as e:
+                self.error.emit(f"Error downloading {qml_file}: {str(e)}")
+                return
+
+        self.finished.emit()
 
 class MyQGISPlugin:
     def __init__(self, iface):
@@ -90,12 +140,12 @@ class MyQGISPlugin:
             self.folder_label.setText(f"Selected Folder: .../{display_folder}")
 
          # Create a label to display messages
-        self.label = QLabel("")
-        layout.addWidget(self.label)  # Add the label to the layout
-        self.label.setVisible(False)  # Initially hide the label
+        self.message_label = QLabel("")
+        layout.addWidget(self.message_label)  # Add the label to the layout
+        self.message_label.setVisible(False)  # Initially hide the label
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 5.25")
+        version_label = QLabel("Version: 6.0.0")
         layout.addWidget(version_label)
 
        
@@ -138,14 +188,20 @@ class MyQGISPlugin:
 
     def apply_styles_to_layer(self, layer, qml_files):
         """Apply QML styles to a given layer based on its name."""
-        layer_name = layer.name()
+        layer_name = layer.name().lower()  # Ensure lowercase for comparison
+        
         for key, qml_file in qml_files.items():
-            if key in layer_name.lower():
+            if key in layer_name:
                 try:
-                    layer.loadNamedStyle(qml_file)
-                    layer.triggerRepaint()
+                    result = layer.loadNamedStyle(qml_file)  # Check if successful
+                    if result == 0:
+                        iface.messageBar().pushWarning("Warning", f"Style file not applied for {layer_name}. Check the QML Folder.")
+                    else:
+                        layer.triggerRepaint()  # Ensure refresh
+
                 except Exception as e:
                     iface.messageBar().pushCritical("Error", f"Failed to load style for {layer_name}: {str(e)}")
+
 
     def rearrange_layers(self, group, layers, layer_order):
         """Rearrange layers within the selected group according to the specified order."""
@@ -304,41 +360,47 @@ class MyQGISPlugin:
 
     def update_qml(self):
         if not self.qml_folder:
-            self.label.setText("Please select a QML folder first.")
+            self.message_label.setText("Please select a QML folder first.")
+            self.message_label.setVisible(True)
             return
 
-        self.label.setVisible(True)  # Show the label at the start of the update
-        self.label.setText("Updating QML files...")  # Set initial message
+        self.message_label.setVisible(True)
+        self.message_label.setText("Updating QML files...")
+        
+        # Create and configure the worker with json_file parameter
+        self.worker = QMLUpdateWorker(
+            self.github_repo, 
+            self.qml_folder, 
+            self.qml_files,
+            self.json_file
+        )
+        
+        # Connect signals
+        self.worker.progress.connect(self.update_progress)
+        self.worker.finished.connect(self.update_completed)
+        self.worker.error.connect(self.update_error)
+        
+        # Start the worker
+        self.worker.start()
+        
+        # Disable the update button while working
+        self.update_button.setEnabled(False)
 
-        total_files = len(self.qml_files)
-        self.progress_bar.setMaximum(total_files)
-        self.progress_bar.setValue(0)
+    def update_progress(self, value, message):
+        self.progress_bar.setValue(value)
+        self.message_label.setText(message)
 
-        for index, qml_file in enumerate(self.qml_files):
-            try:
-                url = f"{self.github_repo}{qml_file}"
-                response = requests.get(url, stream=True)
-                response.raise_for_status()  # Raise an error for bad responses
-
-                qml_path = os.path.join(self.qml_folder, qml_file)
-
-                with open(qml_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:  # Filter out keep-alive new chunks
-                            f.write(chunk)
-
-                self.label.setText(f"Updated QML file downloaded: {qml_path}")
-            except Exception as e:
-                self.label.setText(f"Error downloading {qml_file}: {str(e)}")
-
-            self.progress_bar.setValue(index + 1)
-
-        self.label.setText("Download complete!")  # Final message
-        # Optionally hide the label after completion
-        self.label.setVisible(False)
-
-        # Add message box to confirm completion
+    def update_completed(self):
+        self.message_label.setText("Download complete!")
+        self.message_label.setVisible(False)
+        self.update_button.setEnabled(True)
         QMessageBox.information(None, "Update Complete", "All QML files have been successfully updated.")
+
+    def update_error(self, error_message):
+        self.message_label.setText(error_message)
+        self.message_label.setVisible(True)
+        self.update_button.setEnabled(True)
+        QMessageBox.critical(None, "Error", error_message)
 
     def load_qml_files(self):
         """Load QML file names from a JSON file."""
