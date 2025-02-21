@@ -145,7 +145,7 @@ class MyQGISPlugin:
         self.message_label.setVisible(False)  # Initially hide the label
 
         # Add version label at the bottom
-        version_label = QLabel("Version: 6.0.0")
+        version_label = QLabel("Version: 6.1.0")
         layout.addWidget(version_label)
 
        
@@ -165,6 +165,11 @@ class MyQGISPlugin:
             # Save the folder path to a JSON file
             with open(self.get_folder_path_file(), 'w') as f:
                 json.dump({'folder': folder}, f)
+
+            # Check if there are QML files in the selected folder
+            qml_files = [f for f in os.listdir(folder) if f.endswith('.qml')]
+            if not qml_files:
+                QMessageBox.warning(None, "No QML Files", "No QML files found in the selected folder. Please click 'Update QML' to download the latest QML files.")
 
     def get_folder_path_file(self):
         return os.path.join(self.plugin_dir, 'folder_path.json')
@@ -235,6 +240,12 @@ class MyQGISPlugin:
     def run_geotagging(self):
         if not self.qml_folder:
             iface.messageBar().pushCritical("Error", "Please select a folder first.")
+            return
+
+        # Check if there are QML files in the selected folder
+        qml_files = [f for f in os.listdir(self.qml_folder) if f.endswith('.qml')]
+        if not qml_files:
+            iface.messageBar().pushCritical("Error", "No QML files found in the selected folder. Please click 'Update QML' to download the latest QML files.")
             return
 
         selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
@@ -437,6 +448,12 @@ class MyQGISPlugin:
             iface.messageBar().pushCritical("Error", "Please select a folder first.")
             return
 
+        # Check if there are QML files in the selected folder
+        qml_files = [f for f in os.listdir(self.qml_folder) if f.endswith('.qml')]
+        if not qml_files:
+            iface.messageBar().pushCritical("Error", "No QML files found in the selected folder. Please click 'Update QML' to download the latest QML files.")
+            return
+
         selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
         if not selected_groups:
             iface.messageBar().pushCritical("Error", "Please select at least one layer group.")
@@ -539,6 +556,12 @@ class MyQGISPlugin:
     def run_digitize(self):
         if not self.qml_folder:
             iface.messageBar().pushCritical("Error", "Please select a folder first.")
+            return
+
+        # Check if there are QML files in the selected folder
+        qml_files = [f for f in os.listdir(self.qml_folder) if f.endswith('.qml')]
+        if not qml_files:
+            iface.messageBar().pushCritical("Error", "No QML files found in the selected folder. Please click 'Update QML' to download the latest QML files.")
             return
 
         selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
