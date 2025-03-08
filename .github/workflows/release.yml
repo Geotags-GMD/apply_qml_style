@@ -1,0 +1,40 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0
+
+jobs:
+  release:
+    name: Build and Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Create Zip Archive
+        run: |
+          zip -r release.zip . -x "*.git*" ".github/*" "node_modules/*"
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          echo "### Changes in this release:" > release_notes.md
+          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s" >> release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body_path: release_notes.md
+          files: release.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
