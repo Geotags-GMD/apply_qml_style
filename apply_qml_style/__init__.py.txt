@@ -1,0 +1,3 @@
+def classFactory(iface):
+    from .my_qgis_plugin import MyQGISPlugin
+    return MyQGISPlugin(iface)
