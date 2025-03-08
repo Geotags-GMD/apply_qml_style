@@ -25,7 +25,7 @@ jobs:
       - name: Generate Release Notes
         id: release_notes
         run: |
-          echo "### Changes in this release:" > release_notes.md
+          echo "" > release_notes.md
           git log --pretty=format:"- %s" $(git rev-list --tags --max-count=1 2>/dev/null || echo HEAD)..HEAD >> release_notes.md
 
       - name: Create GitHub Release with Verified Signature
