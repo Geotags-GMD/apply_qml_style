@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/plugins/apply_qml_style" >
-        <file>icon.png</file>
-    </qresource>
-</RCC>
