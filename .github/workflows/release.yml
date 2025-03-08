@@ -24,14 +24,14 @@ jobs:
 
       - name: Create Zip Archive with Version
         run: |
-          VERSION=${{ github.ref_name }}
+          VERSION=${GITHUB_REF#refs/tags/}
           zip -r "apply_qml_style_${VERSION}.zip" . -x "*.git*" ".github/*" "node_modules/*"
 
       - name: Generate Release Notes
         id: release_notes
         run: |
           echo "### Changes in this release:" > release_notes.md
-          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s" >> release_notes.md
+          git log --pretty=format:"- %s" $(git rev-list --tags --max-count=1)..HEAD >> release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
