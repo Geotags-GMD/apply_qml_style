@@ -22,9 +22,10 @@ jobs:
         with:
           node-version: 18
 
-      - name: Create Zip Archive
+      - name: Create Zip Archive with Version
         run: |
-          zip -r release.zip . -x "*.git*" ".github/*" "node_modules/*"
+          VERSION=${{ github.ref_name }}
+          zip -r "apply_qml_style_${VERSION}.zip" . -x "*.git*" ".github/*" "node_modules/*"
 
       - name: Generate Release Notes
         id: release_notes
@@ -38,6 +39,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body_path: release_notes.md
-          files: release.zip
+          files: "apply_qml_style_${{ github.ref_name }}.zip"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
