@@ -6,7 +6,7 @@
 name=QML Style Manager
 qgisMinimumVersion=3.22.9
 description=This plugin is particularly useful for managing and styling large sets of geospatial data where consistent visual representation is crucial.
-version=6.1.0
+version=1.0.0
 author=Philippine Statistics Authority | GMD
 email=test@gmail.com
 
