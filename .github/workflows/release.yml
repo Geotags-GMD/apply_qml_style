@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'  # Triggers on version tags like v1.0.0
 
+permissions:
+  contents: write  # ✅ Grant write permission to create a release
+
 jobs:
   release:
     name: Build and Create Release
