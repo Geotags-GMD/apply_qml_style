@@ -17,15 +17,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
       - name: Create Zip Archive with Version
         run: |
           VERSION=${{ github.ref_name }}
-          zip -r "apply_qml_style_${VERSION}.zip" . -x "*.git*" ".github/*" "node_modules/*"
+          zip -r "apply_qml_style_${VERSION}.zip" . -x "*.git*" ".github/*"
 
       - name: Generate Release Notes
         id: release_notes
